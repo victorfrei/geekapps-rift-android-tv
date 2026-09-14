@@ -20,6 +20,7 @@ import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -43,6 +44,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -53,6 +55,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
+import kotlin.math.absoluteValue
 import com.example.geekappsrift.ui.theme.GeekappsRiftTheme
 
 class MainActivity : ComponentActivity() {
@@ -77,26 +80,60 @@ class MainActivity : ComponentActivity() {
 fun HomeScreen() {
     var selectedIndex by remember { mutableStateOf(0) }
     val selectedGame = mockGames[selectedIndex]
+    var selectedNewsIndex by remember { mutableStateOf(0) }
 
-    // Each section is its own full-screen page: the hero (header, game
-    // meta, carousel) and Novidades never compress each other — a real
-    // pager snaps fully from one to the other instead of a LazyColumn,
-    // which would auto-scroll partway whenever a descendant (like the
-    // game carousel) requests focus.
+    // Each section is its own full-screen page: the hero (game meta,
+    // carousel) and Novidades never compress each other — a real pager
+    // snaps fully from one to the other instead of a LazyColumn, which
+    // would auto-scroll partway whenever a descendant (like the game
+    // carousel) requests focus.
     val pagerState = rememberPagerState(pageCount = { 2 })
-    VerticalPager(
-        state = pagerState,
-        modifier = Modifier.fillMaxSize()
-    ) { page ->
-        when (page) {
-            0 -> HeroSection(
-                modifier = Modifier.fillMaxSize(),
-                games = mockGames,
-                selectedGame = selectedGame,
-                selectedIndex = selectedIndex,
-                onIndexSelected = { selectedIndex = it }
-            )
-            else -> NovidadesPage(modifier = Modifier.fillMaxSize())
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        VerticalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            // Cross-fade + a gentle scale-down on whichever page is
+            // leaving/entering, instead of a flat mechanical slide.
+            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+            val distance = pageOffset.absoluteValue.coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = 1f - distance * 0.7f
+                        val scale = 1f - distance * 0.1f
+                        scaleX = scale
+                        scaleY = scale
+                    }
+            ) {
+                when (page) {
+                    0 -> HeroSection(
+                        modifier = Modifier.fillMaxSize(),
+                        games = mockGames,
+                        selectedGame = selectedGame,
+                        selectedIndex = selectedIndex,
+                        onIndexSelected = { selectedIndex = it }
+                    )
+                    else -> NovidadesPage(
+                        modifier = Modifier.fillMaxSize(),
+                        selectedNewsIndex = selectedNewsIndex,
+                        onNewsSelected = { selectedNewsIndex = it }
+                    )
+                }
+            }
+        }
+
+        // Header and button hints never move: they stay on screen above
+        // every page, regardless of which section is in view.
+        TopNavigationBar(modifier = Modifier.align(Alignment.TopCenter))
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 24.dp, end = 48.dp)
+        ) {
+            BottomHints()
         }
     }
 }
@@ -109,7 +146,7 @@ fun HeroSection(
     selectedIndex: Int,
     onIndexSelected: (Int) -> Unit
 ) {
-    Box(modifier = modifier.fillMaxWidth()) {
+    Box(modifier = modifier) {
         // Background Image with crossfade
         Crossfade(
             targetState = selectedGame.backgroundRes,
@@ -141,10 +178,28 @@ fun HeroSection(
                 )
         )
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            TopNavigationBar()
-            Spacer(modifier = Modifier.height(200.dp))
+        // Extra bottom-to-top darkening so the text sitting near the
+        // bottom of the page always reads clearly against the artwork.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.3f)),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
+                    )
+                )
+        )
 
+        // Content is bottom-anchored, clear of the fixed header above and
+        // the fixed button hints below.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 96.dp),
+            verticalArrangement = Arrangement.Bottom
+        ) {
             GameMetaSection(selectedGame)
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -153,43 +208,73 @@ fun HeroSection(
                 selectedIndex = selectedIndex,
                 onIndexSelected = onIndexSelected
             )
-        }
+            Spacer(modifier = Modifier.height(24.dp))
 
-        NovidadesTeaser(modifier = Modifier.align(Alignment.BottomStart))
-
-        // Fixed Bottom Hints on overlay
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 24.dp, end = 48.dp)
-        ) {
-            BottomHints()
+            NovidadesTeaser()
         }
     }
 }
 
 @Composable
-fun NovidadesPage(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(Color.Black)
-    ) {
+fun NovidadesPage(
+    modifier: Modifier = Modifier,
+    selectedNewsIndex: Int,
+    onNewsSelected: (Int) -> Unit
+) {
+    val selectedNews = mockNews[selectedNewsIndex]
+
+    Box(modifier = modifier) {
+        // Background reflects whichever news card currently has focus,
+        // just like the hero page reflects the selected game.
+        Crossfade(
+            targetState = selectedNews.imageRes,
+            animationSpec = tween(durationMillis = 500),
+            label = "news_background_fade"
+        ) { bgRes ->
+            AsyncImage(
+                model = bgRes,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.95f)
+                        ),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
+                    )
+                )
+        )
+
+        // Bottom-anchored, same as every other section.
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 64.dp)
+                .padding(bottom = 96.dp),
+            verticalArrangement = Arrangement.Bottom
         ) {
-            NovidadesSection()
+            NovidadesSection(
+                selectedIndex = selectedNewsIndex,
+                onIndexSelected = onNewsSelected
+            )
         }
     }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun TopNavigationBar() {
+fun TopNavigationBar(modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(top = 24.dp, start = 48.dp, end = 48.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -462,7 +547,7 @@ fun NovidadesTeaser(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun NovidadesSection() {
+fun NovidadesSection(selectedIndex: Int, onIndexSelected: (Int) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -481,17 +566,38 @@ fun NovidadesSection() {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(end = 48.dp)
         ) {
-            items(mockNews) { news ->
-                NewsCard(news)
+            itemsIndexed(mockNews) { index, news ->
+                NewsCard(
+                    news = news,
+                    requestInitialFocus = index == 0,
+                    onFocused = { onIndexSelected(index) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun NewsCard(news: NewsItem) {
+fun NewsCard(
+    news: NewsItem,
+    requestInitialFocus: Boolean = false,
+    onFocused: () -> Unit = {}
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            onFocused()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (requestInitialFocus) {
+            focusRequester.requestFocus()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -502,6 +608,7 @@ fun NewsCard(news: NewsItem) {
                 color = if (isFocused) Color.Green else Color.Transparent,
                 shape = RoundedCornerShape(8.dp)
             )
+            .focusRequester(focusRequester)
             .focusable(interactionSource = interactionSource)
     ) {
         AsyncImage(

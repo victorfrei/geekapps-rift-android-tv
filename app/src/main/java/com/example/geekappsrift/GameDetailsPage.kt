@@ -5,7 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,6 +23,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -29,6 +37,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -36,7 +45,30 @@ fun GameDetailsPage(
     game: Game,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier) {
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+
+    Box(
+        modifier = modifier
+            // Scroll the page explicitly on D-pad up/down. Relying on
+            // focus-driven bring-into-view doesn't move this column at
+            // all on a TV remote.
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                if (event.nativeKeyEvent.repeatCount != 0) return@onKeyEvent true
+                when (event.key) {
+                    Key.DirectionDown -> {
+                        coroutineScope.launch { scrollState.animateScrollBy(320f) }
+                        true
+                    }
+                    Key.DirectionUp -> {
+                        coroutineScope.launch { scrollState.animateScrollBy(-320f) }
+                        true
+                    }
+                    else -> false
+                }
+            }
+    ) {
         // Hero background
         AsyncImage(
             model = game.backgroundRes,
@@ -71,12 +103,19 @@ fun GameDetailsPage(
                 )
         )
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            Spacer(modifier = Modifier.height(56.dp))
-
-            Row(modifier = Modifier.padding(horizontal = 48.dp)) {
-                // Left column: identity + purchase actions.
-                Column(modifier = Modifier.width(320.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 48.dp)
+        ) {
+            // Left column stays put ("sticky") — it's simply outside the
+            // scrollable container, so the purchase actions are always
+            // reachable no matter how far the right side is scrolled.
+            Column(
+                modifier = Modifier
+                    .width(320.dp)
+                    .padding(top = 56.dp)
+            ) {
                     Text(
                         text = "${game.studio} · ${game.releaseYear}",
                         color = Color.LightGray,
@@ -195,10 +234,16 @@ fun GameDetailsPage(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(32.dp))
+            Spacer(modifier = Modifier.width(32.dp))
 
-                // Right column: feature tags, age rating, media gallery.
-                Column(modifier = Modifier.weight(1f)) {
+            // Right column scrolls: tags, rating, media, promo, bundles,
+            // add-ons — the full page content.
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(scrollState)
+                    .padding(top = 56.dp, bottom = 48.dp)
+            ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         game.tags.forEach { tag ->
                             TagChip(tag)
@@ -273,12 +318,69 @@ fun GameDetailsPage(
                             )
                         }
                     }
-                }
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
+                    Text(
+                        text = game.description,
+                        color = Color.LightGray,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Mostrar mais",
+                        color = Color(0xFFFF8A50),
+                        fontSize = 13.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
+                    PromoBanner(game = game)
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Text(
+                        text = "Pacotes do jogo",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        game.bundles.forEach { bundle ->
+                            BundleCard(
+                                bundle = bundle,
+                                imageRes = game.coverRes,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Text(
+                        text = "Complementos",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        game.addOns.forEach { addOn ->
+                            AddOnCard(
+                                addOn = addOn,
+                                imageRes = game.backgroundRes,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            PromoBanner(game = game, modifier = Modifier.padding(horizontal = 48.dp))
         }
 
         // Back arrow
@@ -405,6 +507,165 @@ private fun PromoBanner(game: Game, modifier: Modifier = Modifier) {
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp))
         )
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun BundleCard(bundle: GameBundle, imageRes: Int, modifier: Modifier = Modifier) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(
+                width = if (isFocused) 3.dp else 0.dp,
+                color = if (isFocused) Color.White else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .focusable(interactionSource = interactionSource)
+    ) {
+        Box {
+            AsyncImage(
+                model = imageRes,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+            )
+            if (bundle.proPriceLabel != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                ) {
+                    ProBadge()
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = bundle.proPriceLabel,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = bundle.name,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (bundle.originalPriceLabel != null) {
+                    Text(
+                        text = bundle.originalPriceLabel,
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        textDecoration = TextDecoration.LineThrough
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text(
+                    text = bundle.priceLabel,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (bundle.discountPercent != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color(0xFF1E8E5A))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "-${bundle.discountPercent}%",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            bundle.includes.forEach { item ->
+                Text(
+                    text = "• $item",
+                    color = Color.LightGray,
+                    fontSize = 12.sp
+                )
+            }
+            if (bundle.offerEndsLabel != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = bundle.offerEndsLabel,
+                    color = Color.Gray,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun AddOnCard(addOn: GameAddOn, imageRes: Int, modifier: Modifier = Modifier) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(
+                width = if (isFocused) 3.dp else 0.dp,
+                color = if (isFocused) Color.White else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .focusable(interactionSource = interactionSource)
+    ) {
+        AsyncImage(
+            model = imageRes,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+        )
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = addOn.name,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = addOn.priceLabel, color = Color.LightGray, fontSize = 12.sp)
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun ProBadge() {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(3.dp))
+            .background(Brush.horizontalGradient(listOf(Color(0xFFEE0979), Color(0xFFFF6A00))))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(text = "PRO", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 

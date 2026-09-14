@@ -2,6 +2,21 @@ package com.example.geekappsrift
 
 import androidx.annotation.DrawableRes
 
+data class GameBundle(
+    val name: String,
+    val priceLabel: String,
+    val originalPriceLabel: String? = null,
+    val discountPercent: Int? = null,
+    val proPriceLabel: String? = null,
+    val includes: List<String>,
+    val offerEndsLabel: String? = null
+)
+
+data class GameAddOn(
+    val name: String,
+    val priceLabel: String
+)
+
 data class Game(
     val id: String,
     val title: String,
@@ -21,7 +36,46 @@ data class Game(
     val proPriceLabel: String? = null,
     val offerEndsLabel: String? = null,
     val trialMinutes: Int = 60,
-    val tags: List<String> = listOf("Multijogador Online", "Compatível com Cloud")
+    val tags: List<String> = listOf("Multijogador Online", "Compatível com Cloud"),
+    val description: String = "Explore um mundo aberto vibrante com liberdade total para " +
+        "criar sua própria jornada. Enfrente desafios, personalize sua experiência e " +
+        "jogue com amigos em partidas online a qualquer momento...",
+    val bundles: List<GameBundle> = emptyList(),
+    val addOns: List<GameAddOn> = emptyList()
+)
+
+private fun standardBundles(
+    title: String,
+    standard: String,
+    standardOriginal: String,
+    gold: String,
+    goldOriginal: String,
+    ultimate: String,
+    ultimateOriginal: String
+) = listOf(
+    GameBundle(
+        name = "$title Edição Padrão",
+        priceLabel = standard,
+        originalPriceLabel = standardOriginal,
+        discountPercent = 30,
+        proPriceLabel = null,
+        includes = listOf(title),
+        offerEndsLabel = "Oferta termina em 11/01, 12:00"
+    ),
+    GameBundle(
+        name = "$title Gold Edition",
+        priceLabel = gold,
+        originalPriceLabel = goldOriginal,
+        discountPercent = 30,
+        includes = listOf(title, "Passe de Temporada", "Pacote de Skins", "E mais"),
+        offerEndsLabel = "Oferta termina em 11/01, 12:00"
+    ),
+    GameBundle(
+        name = "$title Ultimate Edition",
+        priceLabel = ultimate,
+        originalPriceLabel = ultimateOriginal,
+        includes = listOf(title, "Passe de Temporada", "Conteúdo Exclusivo")
+    )
 )
 
 data class NewsItem(
@@ -60,7 +114,24 @@ val mockGames = listOf(
         proPriceLabel = "R$ 99,90",
         offerEndsLabel = "Oferta termina em 11/01, 12:00",
         trialMinutes = 120,
-        tags = listOf("Multijogador Online", "Mundo Aberto", "2-12 jogadores online")
+        tags = listOf("Multijogador Online", "Mundo Aberto", "2-12 jogadores online"),
+        description = "Dirija por paisagens deslumbrantes do México em um mundo aberto " +
+            "sempre em evolução. Colecione centenas de carros, personalize cada detalhe " +
+            "e dispute corridas com amigos em eventos sazonais que mudam toda semana...",
+        bundles = standardBundles(
+            title = "Forza Horizon 5",
+            standard = "R$ 174,90",
+            standardOriginal = "R$ 249,90",
+            gold = "R$ 244,90",
+            goldOriginal = "R$ 349,90",
+            ultimate = "R$ 314,90",
+            ultimateOriginal = "R$ 449,90"
+        ),
+        addOns = listOf(
+            GameAddOn("Pacote de Carros Premium", "R$ 79,90"),
+            GameAddOn("Passe de Expansão", "R$ 129,90"),
+            GameAddOn("Pacote de Personalização", "R$ 39,90")
+        )
     ),
     Game(
         id = "2",

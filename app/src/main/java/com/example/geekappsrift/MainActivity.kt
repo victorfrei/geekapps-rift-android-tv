@@ -96,24 +96,30 @@ fun HomeScreen() {
         snapAnimationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            // Backstop for the transition: without this, scaling a page
+            // down during the animation reveals plain white at its edges
+            // instead of just dimming into the next page.
+            .background(Color.Black)
+    ) {
         VerticalPager(
             state = pagerState,
             flingBehavior = pagerFlingBehavior,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            // Cross-fade + a gentle scale-down on whichever page is
-            // leaving/entering, instead of a flat mechanical slide.
+            // Cross-fade on whichever page is leaving/entering, instead of
+            // a flat mechanical slide. No scale here — shrinking a page
+            // exposes whatever sits behind it at the edges, which read as
+            // a jarring flash.
             val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
             val distance = pageOffset.absoluteValue.coerceIn(0f, 1f)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        alpha = 1f - distance * 0.7f
-                        val scale = 1f - distance * 0.1f
-                        scaleX = scale
-                        scaleY = scale
+                        alpha = 1f - distance * 0.6f
                     }
             ) {
                 when (page) {

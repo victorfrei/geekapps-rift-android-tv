@@ -55,7 +55,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import androidx.compose.ui.graphics.FilterQuality
 import coil.compose.AsyncImage
-import kotlin.math.absoluteValue
+import kotlinx.coroutines.launch
 import com.example.geekappsrift.ui.theme.GeekappsRiftTheme
 
 class MainActivity : ComponentActivity() {
@@ -100,6 +100,8 @@ fun HomeScreen() {
         snapAnimationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
     )
 
+    val coroutineScope = rememberCoroutineScope()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -107,30 +109,63 @@ fun HomeScreen() {
             // down during the animation reveals plain white at its edges
             // instead of just dimming into the next page.
             .background(Color.Black)
+            // D-pad up/down must move exactly one page at a time. Left
+            // unhandled, Android's default focus search sometimes finds no
+            // good candidate on the current page and jumps to a focusable
+            // on a distant page instead — the "first page skips straight
+            // to the last" bug. Intercepting here, above every page's
+            // focused content, and always consuming the key stops that
+            // fallback from ever kicking in.
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                if (event.nativeKeyEvent.repeatCount != 0) return@onKeyEvent true
+                // Both animateScrollToPage and animateScrollBy overshoot to
+                // the last page in this setup — the pager's own snapping
+                // re-processes each incremental animation frame as if it
+                // were a new fling, compounding the distance. scrollToPage
+                // (instant, no built-in animation) is the only reliable
+                // primitive; the crossfade below fakes the smooth feel
+                // independently of the real scroll position.
+                when (event.key) {
+                    Key.DirectionDown -> {
+                        if (pagerState.currentPage < pageCount - 1) {
+                            coroutineScope.launch {
+                                pagerState.scrollToPage(pagerState.currentPage + 1)
+                            }
+                        }
+                        true
+                    }
+                    Key.DirectionUp -> {
+                        if (pagerState.currentPage > 0) {
+                            coroutineScope.launch {
+                                pagerState.scrollToPage(pagerState.currentPage - 1)
+                            }
+                        }
+                        true
+                    }
+                    else -> false
+                }
+            }
     ) {
         VerticalPager(
             state = pagerState,
             flingBehavior = pagerFlingBehavior,
+            userScrollEnabled = false,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            // Cross-fade on whichever page is leaving/entering, instead of
-            // a flat mechanical slide. No scale here — shrinking a page
-            // exposes whatever sits behind it at the edges, which read as
-            // a jarring flash.
-            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-            val distance = pageOffset.absoluteValue.coerceIn(0f, 1f)
+            // The real scroll jump is instant (see above), so the fade is
+            // driven by its own animation keyed only on "is this the
+            // current page" — fully decoupled from scroll offset.
+            val alpha by animateFloatAsState(
+                targetValue = if (page == pagerState.currentPage) 1f else 0f,
+                animationSpec = PageCrossfadeSpec,
+                label = "page_alpha"
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    // Full fade to fully transparent — a page that's mostly
-                    // off-screen must not stay semi-opaque, or it can end
-                    // up hidden behind (instead of crossfading with) the
-                    // page it's swapping with, which only shows up going
-                    // one direction and reads as a broken transition.
-                    .graphicsLayer {
-                        alpha = 1f - distance
-                    }
-                    .zIndex(1f - distance)
+                    .graphicsLayer { this.alpha = alpha }
+                    .zIndex(if (page == pagerState.currentPage) 1f else 0f)
             ) {
                 when (page) {
                     0 -> HeroSection(
@@ -900,6 +935,13 @@ fun GameCarousel(
         )
     }
 }
+
+// The page switch itself is instant (see the D-pad key handler above);
+// this is what actually gives the transition its felt smoothness.
+private val PageCrossfadeSpec = spring<Float>(
+    dampingRatio = 0.75f,
+    stiffness = Spring.StiffnessLow
+)
 
 // Spring-like motion with a slight overshoot before settling — "resistência
 // considerável" means fairly damped, not a loose bouncy spring.

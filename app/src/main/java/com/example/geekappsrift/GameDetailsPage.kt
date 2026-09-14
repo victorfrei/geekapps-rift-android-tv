@@ -239,11 +239,23 @@ fun GameDetailsPage(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    // Large, roughly half-width previews — not small
+                    // thumbnails — matching the reference's proportions.
                     Box {
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            MediaThumbnail(imageRes = game.backgroundRes, isVideo = true)
-                            MediaThumbnail(imageRes = game.coverRes, isVideo = false)
-                            MediaThumbnail(imageRes = game.backgroundRes, isVideo = false)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            MediaThumbnail(
+                                imageRes = game.backgroundRes,
+                                isVideo = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            MediaThumbnail(
+                                imageRes = game.coverRes,
+                                isVideo = false,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                         Box(
                             modifier = Modifier
@@ -411,13 +423,13 @@ private fun TagChip(text: String) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun MediaThumbnail(imageRes: Int, isVideo: Boolean) {
+private fun MediaThumbnail(imageRes: Int, isVideo: Boolean, modifier: Modifier = Modifier) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
     Box(
-        modifier = Modifier
-            .size(200.dp, 112.dp)
+        modifier = modifier
+            .aspectRatio(16f / 9f)
             .clip(RoundedCornerShape(6.dp))
             .border(
                 width = if (isFocused) 3.dp else 0.dp,

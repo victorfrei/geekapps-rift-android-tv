@@ -232,11 +232,15 @@ fun HeroSection(
         )
 
         // Content is bottom-anchored, clear of the fixed header above and
-        // the fixed button hints below.
+        // the fixed button hints below. The carousel itself is the last
+        // stacked element — the "scroll for Novidades" hint sits in its
+        // own fixed row underneath, not stacked into this block, so the
+        // grid lands right at the true bottom instead of floating above
+        // a chunk of hint text.
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 32.dp),
+                .padding(bottom = 88.dp),
             verticalArrangement = Arrangement.Bottom
         ) {
             GameMetaSection(selectedGame)
@@ -247,10 +251,13 @@ fun HeroSection(
                 selectedIndex = selectedIndex,
                 onIndexSelected = onIndexSelected
             )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            NovidadesTeaser()
         }
+
+        NovidadesTeaser(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(bottom = 24.dp)
+        )
     }
 }
 
@@ -946,7 +953,7 @@ fun NovidadesTeaser(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 48.dp, vertical = 32.dp)
+            .padding(horizontal = 48.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

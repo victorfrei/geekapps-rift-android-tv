@@ -3,7 +3,11 @@ package com.example.geekappsrift
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
@@ -43,6 +47,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -83,12 +88,11 @@ fun HomeScreen() {
     // Each section is its own full-screen page. VerticalPager proved too
     // fragile here (animateScrollToPage/animateScrollBy both overshot to
     // the last page, apparently from its own snapping fling re-processing
-    // each animation frame as a new fling) — a plain index + Crossfade is
-    // simple, always lands exactly where told, and Crossfade already
-    // keeps both the outgoing and incoming content mounted for the
-    // duration of the fade, which is exactly what a real crossfade needs.
+    // each animation frame as a new fling) — a plain index + AnimatedContent
+    // is simple and always lands exactly where told.
     val pageCount = 5
     var currentPage by remember { mutableStateOf(0) }
+    val controllerBrand = rememberControllerBrand()
 
     Box(
         modifier = Modifier
@@ -110,10 +114,22 @@ fun HomeScreen() {
                 }
             }
     ) {
-        Crossfade(
+        AnimatedContent(
             targetState = currentPage,
-            animationSpec = PageCrossfadeSpec,
-            label = "page_crossfade",
+            transitionSpec = {
+                // Slide the new section in from whichever edge it's
+                // coming from (down when moving forward, up when going
+                // back), sliding the old one out the opposite way —
+                // instead of a flat crossfade.
+                if (targetState > initialState) {
+                    (slideInVertically(PageSlideSpec) { height -> height })
+                        .togetherWith(slideOutVertically(PageSlideSpec) { height -> -height })
+                } else {
+                    (slideInVertically(PageSlideSpec) { height -> -height })
+                        .togetherWith(slideOutVertically(PageSlideSpec) { height -> height })
+                }
+            },
+            label = "page_transition",
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
@@ -155,7 +171,7 @@ fun HomeScreen() {
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 24.dp, end = 48.dp)
         ) {
-            BottomHints()
+            BottomHints(page = currentPage, brand = controllerBrand)
         }
     }
 }
@@ -884,10 +900,9 @@ fun GameCarousel(
     }
 }
 
-// The page switch itself is instant (see the D-pad key handler above);
-// this is what actually gives the transition its felt smoothness.
-private val PageCrossfadeSpec = spring<Float>(
-    dampingRatio = 0.75f,
+// Slide-in/out spec for section transitions.
+private val PageSlideSpec = spring<IntOffset>(
+    dampingRatio = 0.85f,
     stiffness = Spring.StiffnessLow
 )
 
@@ -1076,14 +1091,26 @@ fun NewsCard(
 }
 
 @Composable
-fun BottomHints() {
+fun BottomHints(page: Int, brand: ControllerBrand) {
+    val glyphs = brand.glyphs()
+    // What's actually actionable changes per section: the hero has a
+    // carousel to pick from and a search shortcut; the other pages are
+    // just browsable, so only the confirm action applies there.
+    val hints = when (page) {
+        0 -> listOf(glyphs.confirm to "Selecionar", glyphs.secondary to "Buscar")
+        else -> listOf(glyphs.confirm to "Selecionar", glyphs.back to "Voltar")
+    }
+
     Row(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        HintIcon("A", "Select")
-        Spacer(modifier = Modifier.width(16.dp))
-        HintIcon("Y", "Search")
+        hints.forEachIndexed { index, (icon, label) ->
+            HintIcon(icon, label)
+            if (index != hints.lastIndex) {
+                Spacer(modifier = Modifier.width(16.dp))
+            }
+        }
     }
 }
 

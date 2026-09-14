@@ -263,6 +263,10 @@ fun GameDetailsPage(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            PromoBanner(game = game, modifier = Modifier.padding(horizontal = 48.dp))
         }
 
         // Back arrow
@@ -320,6 +324,76 @@ private fun DetailActionButton(
         verticalAlignment = Alignment.CenterVertically,
         content = priceContent
     )
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun PromoBanner(game: Game, modifier: Modifier = Modifier) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(96.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(
+                width = if (isFocused) 3.dp else 0.dp,
+                color = if (isFocused) Color.White else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .focusable(interactionSource = interactionSource),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(
+                            Brush.horizontalGradient(listOf(Color(0xFFEE0979), Color(0xFFFF6A00)))
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "PRO",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Tenha este jogo com desconto na assinatura Pro",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Assine o Pro e tenha acesso imediato a jogos com até 20% de desconto.",
+                color = Color.LightGray,
+                fontSize = 12.sp,
+                maxLines = 1
+            )
+        }
+
+        AsyncImage(
+            model = game.coverRes,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .width(140.dp)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp))
+        )
+    }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)

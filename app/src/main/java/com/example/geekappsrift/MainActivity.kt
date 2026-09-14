@@ -16,10 +16,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.pager.VerticalPager
-import androidx.compose.foundation.pager.PagerDefaults
-import androidx.compose.foundation.pager.PagerSnapDistance
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -55,7 +51,6 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import androidx.compose.ui.graphics.FilterQuality
 import coil.compose.AsyncImage
-import kotlinx.coroutines.launch
 import com.example.geekappsrift.ui.theme.GeekappsRiftTheme
 
 class MainActivity : ComponentActivity() {
@@ -85,117 +80,70 @@ fun HomeScreen() {
     var selectedMostPlayedIndex by remember { mutableStateOf(0) }
     var selectedFriendIndex by remember { mutableStateOf(0) }
 
-    // Each section is its own full-screen page — hero, destaques, mais
-    // jogados, amigos and novidades never compress each other — a real
-    // pager snaps fully from one to the other instead of a LazyColumn,
-    // which would auto-scroll partway whenever a descendant (like the
-    // game carousel) requests focus.
+    // Each section is its own full-screen page. VerticalPager proved too
+    // fragile here (animateScrollToPage/animateScrollBy both overshot to
+    // the last page, apparently from its own snapping fling re-processing
+    // each animation frame as a new fling) — a plain index + Crossfade is
+    // simple, always lands exactly where told, and Crossfade already
+    // keeps both the outgoing and incoming content mounted for the
+    // duration of the fade, which is exactly what a real crossfade needs.
     val pageCount = 5
-    val pagerState = rememberPagerState(pageCount = { pageCount })
-    // Same spring feel as the card carousel — partially stiff, not a
-    // mechanical linear snap.
-    val pagerFlingBehavior = PagerDefaults.flingBehavior(
-        state = pagerState,
-        pagerSnapDistance = PagerSnapDistance.atMost(1),
-        snapAnimationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
-    )
-
-    val coroutineScope = rememberCoroutineScope()
+    var currentPage by remember { mutableStateOf(0) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // Backstop for the transition: without this, scaling a page
-            // down during the animation reveals plain white at its edges
-            // instead of just dimming into the next page.
             .background(Color.Black)
-            // D-pad up/down must move exactly one page at a time. Left
-            // unhandled, Android's default focus search sometimes finds no
-            // good candidate on the current page and jumps to a focusable
-            // on a distant page instead — the "first page skips straight
-            // to the last" bug. Intercepting here, above every page's
-            // focused content, and always consuming the key stops that
-            // fallback from ever kicking in.
             .onKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                 if (event.nativeKeyEvent.repeatCount != 0) return@onKeyEvent true
-                // Both animateScrollToPage and animateScrollBy overshoot to
-                // the last page in this setup — the pager's own snapping
-                // re-processes each incremental animation frame as if it
-                // were a new fling, compounding the distance. scrollToPage
-                // (instant, no built-in animation) is the only reliable
-                // primitive; the crossfade below fakes the smooth feel
-                // independently of the real scroll position.
                 when (event.key) {
                     Key.DirectionDown -> {
-                        if (pagerState.currentPage < pageCount - 1) {
-                            coroutineScope.launch {
-                                pagerState.scrollToPage(pagerState.currentPage + 1)
-                            }
-                        }
+                        if (currentPage < pageCount - 1) currentPage++
                         true
                     }
                     Key.DirectionUp -> {
-                        if (pagerState.currentPage > 0) {
-                            coroutineScope.launch {
-                                pagerState.scrollToPage(pagerState.currentPage - 1)
-                            }
-                        }
+                        if (currentPage > 0) currentPage--
                         true
                     }
                     else -> false
                 }
             }
     ) {
-        VerticalPager(
-            state = pagerState,
-            flingBehavior = pagerFlingBehavior,
-            userScrollEnabled = false,
+        Crossfade(
+            targetState = currentPage,
+            animationSpec = PageCrossfadeSpec,
+            label = "page_crossfade",
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            // The real scroll jump is instant (see above), so the fade is
-            // driven by its own animation keyed only on "is this the
-            // current page" — fully decoupled from scroll offset.
-            val alpha by animateFloatAsState(
-                targetValue = if (page == pagerState.currentPage) 1f else 0f,
-                animationSpec = PageCrossfadeSpec,
-                label = "page_alpha"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { this.alpha = alpha }
-                    .zIndex(if (page == pagerState.currentPage) 1f else 0f)
-            ) {
-                when (page) {
-                    0 -> HeroSection(
-                        modifier = Modifier.fillMaxSize(),
-                        games = mockGames,
-                        selectedGame = selectedGame,
-                        selectedIndex = selectedIndex,
-                        onIndexSelected = { selectedIndex = it }
-                    )
-                    1 -> DestaquesPage(
-                        modifier = Modifier.fillMaxSize(),
-                        selectedIndex = selectedHighlightIndex,
-                        onIndexSelected = { selectedHighlightIndex = it }
-                    )
-                    2 -> MaisJogadosPage(
-                        modifier = Modifier.fillMaxSize(),
-                        selectedIndex = selectedMostPlayedIndex,
-                        onIndexSelected = { selectedMostPlayedIndex = it }
-                    )
-                    3 -> AmigosPage(
-                        modifier = Modifier.fillMaxSize(),
-                        selectedIndex = selectedFriendIndex,
-                        onIndexSelected = { selectedFriendIndex = it }
-                    )
-                    else -> NovidadesPage(
-                        modifier = Modifier.fillMaxSize(),
-                        selectedNewsIndex = selectedNewsIndex,
-                        onNewsSelected = { selectedNewsIndex = it }
-                    )
-                }
+            when (page) {
+                0 -> HeroSection(
+                    modifier = Modifier.fillMaxSize(),
+                    games = mockGames,
+                    selectedGame = selectedGame,
+                    selectedIndex = selectedIndex,
+                    onIndexSelected = { selectedIndex = it }
+                )
+                1 -> DestaquesPage(
+                    modifier = Modifier.fillMaxSize(),
+                    selectedIndex = selectedHighlightIndex,
+                    onIndexSelected = { selectedHighlightIndex = it }
+                )
+                2 -> MaisJogadosPage(
+                    modifier = Modifier.fillMaxSize(),
+                    selectedIndex = selectedMostPlayedIndex,
+                    onIndexSelected = { selectedMostPlayedIndex = it }
+                )
+                3 -> AmigosPage(
+                    modifier = Modifier.fillMaxSize(),
+                    selectedIndex = selectedFriendIndex,
+                    onIndexSelected = { selectedFriendIndex = it }
+                )
+                else -> NovidadesPage(
+                    modifier = Modifier.fillMaxSize(),
+                    selectedNewsIndex = selectedNewsIndex,
+                    onNewsSelected = { selectedNewsIndex = it }
+                )
             }
         }
 

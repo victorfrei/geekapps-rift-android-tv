@@ -1,47 +1,89 @@
 package com.example.geekappsrift
 
+import androidx.annotation.DrawableRes
+
 data class Game(
     val id: String,
     val title: String,
-    val coverUrl: String,
-    val backgroundUrl: String
+    @DrawableRes val coverRes: Int,
+    @DrawableRes val backgroundRes: Int,
+    val trophiesCount: String = "2/10",
+    val friendsPlayingCount: Int = 3
+)
+
+data class NewsItem(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    @DrawableRes val imageRes: Int
 )
 
 val mockGames = listOf(
     Game(
         id = "1",
         title = "Forza Horizon 5",
-        coverUrl = "https://upload.wikimedia.org/wikipedia/en/8/86/Forza_Horizon_5_cover_art.jpg",
-        backgroundUrl = "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?q=80&w=1920"
+        coverRes = R.drawable.forza_cover,
+        backgroundRes = R.drawable.forza_bg,
+        trophiesCount = "5/10",
+        friendsPlayingCount = 4
     ),
     Game(
         id = "2",
         title = "Minecraft",
-        coverUrl = "https://upload.wikimedia.org/wikipedia/en/5/51/Minecraft_cover.png",
-        backgroundUrl = "https://images.unsplash.com/photo-1606144042858-a5ea658dfa32?q=80&w=1920"
+        coverRes = R.drawable.minecraft_cover,
+        backgroundRes = R.drawable.minecraft_bg,
+        trophiesCount = "8/10",
+        friendsPlayingCount = 2
     ),
     Game(
         id = "3",
-        title = "Diablo IV",
-        coverUrl = "https://upload.wikimedia.org/wikipedia/en/6/68/Diablo_IV_cover_art.png",
-        backgroundUrl = "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1920"
+        title = "Halo Infinite",
+        coverRes = R.drawable.halo_cover,
+        backgroundRes = R.drawable.halo_bg,
+        trophiesCount = "3/10",
+        friendsPlayingCount = 5
     ),
     Game(
         id = "4",
-        title = "Fortnite",
-        coverUrl = "https://upload.wikimedia.org/wikipedia/en/a/ae/Fortnite_Save_The_World.jpg",
-        backgroundUrl = "https://images.unsplash.com/photo-1589241062272-c0a1f43699ce?q=80&w=1920"
+        title = "Party Animals",
+        coverRes = R.drawable.party_animals_cover,
+        backgroundRes = R.drawable.party_animals_bg,
+        trophiesCount = "1/10",
+        friendsPlayingCount = 3
     ),
     Game(
         id = "5",
-        title = "Party Animals",
-        coverUrl = "https://upload.wikimedia.org/wikipedia/en/8/84/Party_Animals_cover_art.jpg",
-        backgroundUrl = "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920"
+        title = "Fortnite",
+        coverRes = R.drawable.fortnite_cover,
+        backgroundRes = R.drawable.fortnite_bg,
+        trophiesCount = "7/10",
+        friendsPlayingCount = 6
+    )
+)
+
+val mockNews = listOf(
+    NewsItem(
+        id = "1",
+        title = "Nova Temporada Lançada!",
+        subtitle = "Confira todas as novidades e itens exclusivos.",
+        imageRes = R.drawable.fortnite_bg
     ),
-    Game(
-        id = "6",
-        title = "Halo Infinite",
-        coverUrl = "https://upload.wikimedia.org/wikipedia/en/1/14/Halo_Infinite.png",
-        backgroundUrl = "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1920"
+    NewsItem(
+        id = "2",
+        title = "Evento de Fim de Semana",
+        subtitle = "Ganhe XP em dobro em todas as partidas.",
+        imageRes = R.drawable.halo_bg
+    ),
+    NewsItem(
+        id = "3",
+        title = "Atualização de Conteúdo",
+        subtitle = "Novos carros e pistas adicionados hoje.",
+        imageRes = R.drawable.forza_bg
+    ),
+    NewsItem(
+        id = "4",
+        title = "Novos Mapas Disponíveis",
+        subtitle = "Jogue agora nos cenários inéditos.",
+        imageRes = R.drawable.party_animals_bg
     )
 )

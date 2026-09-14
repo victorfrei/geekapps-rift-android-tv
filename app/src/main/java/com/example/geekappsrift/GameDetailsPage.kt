@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -72,33 +74,40 @@ fun GameDetailsPage(
         Column(modifier = Modifier.fillMaxSize()) {
             Spacer(modifier = Modifier.height(56.dp))
 
-            Column(modifier = Modifier.padding(horizontal = 48.dp)) {
-                Text(
-                    text = "${game.studio} · ${game.releaseYear}",
-                    color = Color.LightGray,
-                    fontSize = 13.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = game.title,
-                    color = Color.White,
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Jogo", color = Color.LightGray, fontSize = 13.sp)
+            Row(modifier = Modifier.padding(horizontal = 48.dp)) {
+                // Left column: identity + purchase actions.
+                Column(modifier = Modifier.width(320.dp)) {
+                    Text(
+                        text = "${game.studio} · ${game.releaseYear}",
+                        color = Color.LightGray,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = game.title,
+                        color = Color.White,
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Jogo", color = Color.LightGray, fontSize = 13.sp)
 
-                Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                Column(modifier = Modifier.width(280.dp)) {
                     if (game.trialMinutes > 0) {
                         DetailActionButton(
-                            text = "Jogar por ${game.trialMinutes} min",
                             containerColor = Brush.horizontalGradient(
                                 listOf(Color(0xFFFF6A00), Color(0xFFEE0979))
                             ),
-                            textColor = Color.White,
-                            requestInitialFocus = true
+                            requestInitialFocus = true,
+                            priceContent = {
+                                Text(
+                                    text = "Jogar por ${game.trialMinutes} min",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -109,95 +118,149 @@ fun GameDetailsPage(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
+
                     DetailActionButton(
-                        text = "${game.priceLabel} Comprar",
+                        priceContent = {
+                            if (game.originalPriceLabel != null) {
+                                Text(
+                                    text = game.originalPriceLabel,
+                                    color = Color.Gray,
+                                    fontSize = 13.sp,
+                                    textDecoration = TextDecoration.LineThrough
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text(
+                                text = "${game.priceLabel} Comprar",
+                                color = Color.Black,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
                         containerColor = Brush.linearGradient(listOf(Color.White, Color.White)),
-                        textColor = Color.Black,
                         requestInitialFocus = game.trialMinutes == 0
                     )
+
+                    if (game.proPriceLabel != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        DetailActionButton(
+                            priceContent = {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(3.dp))
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(Color(0xFFEE0979), Color(0xFFFF6A00))
+                                            )
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "PRO",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${game.proPriceLabel} Comprar",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            containerColor = Brush.linearGradient(
+                                listOf(Color.White.copy(alpha = 0.1f), Color.White.copy(alpha = 0.1f))
+                            )
+                        )
+                    }
+
+                    if (game.offerEndsLabel != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = game.offerEndsLabel,
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Ver todos os pacotes do jogo",
-                        color = Color(0xFF6AB7FF),
+                        color = Color(0xFFFF8A50),
                         fontSize = 13.sp,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.width(32.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .width(280.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .padding(12.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Você tem R$ 20 de desconto",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "na sua próxima compra de jogo",
-                            color = Color.LightGray,
-                            fontSize = 11.sp
-                        )
+                // Right column: feature tags, age rating, media gallery.
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        game.tags.forEach { tag ->
+                            TagChip(tag)
+                        }
                     }
-                    Text(text = "Ver termos", color = Color(0xFF6AB7FF), fontSize = 11.sp)
-                }
-            }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Column(modifier = Modifier.padding(horizontal = 48.dp, vertical = 0.dp).padding(bottom = 24.dp)) {
-                Text(
-                    text = game.genre,
-                    color = Color.LightGray,
-                    fontSize = 13.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color.White.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = game.ageRating,
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(2.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = game.ageRating,
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Classificação ${game.ageRating}",
+                                color = Color(0xFFFF8A50),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = game.contentDescriptors,
+                                color = Color.LightGray,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Classificação ${game.ageRating}",
-                            color = Color(0xFF6AB7FF),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = game.contentDescriptors,
-                            color = Color.LightGray,
-                            fontSize = 11.sp
-                        )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Box {
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            MediaThumbnail(imageRes = game.backgroundRes, isVideo = true)
+                            MediaThumbnail(imageRes = game.coverRes, isVideo = false)
+                            MediaThumbnail(imageRes = game.backgroundRes, isVideo = false)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.ChevronRight,
+                                contentDescription = "Ver mais mídia",
+                                tint = Color.Black,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    MediaThumbnail(imageRes = game.backgroundRes, isVideo = true)
-                    MediaThumbnail(imageRes = game.coverRes, isVideo = false)
-                    MediaThumbnail(imageRes = game.backgroundRes, isVideo = false)
                 }
             }
         }
@@ -225,10 +288,9 @@ fun GameDetailsPage(
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun DetailActionButton(
-    text: String,
     containerColor: Brush,
-    textColor: Color,
-    requestInitialFocus: Boolean = false
+    requestInitialFocus: Boolean = false,
+    priceContent: @Composable RowScope.() -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -240,7 +302,7 @@ private fun DetailActionButton(
         }
     }
 
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(44.dp)
@@ -252,10 +314,24 @@ private fun DetailActionButton(
                 shape = RoundedCornerShape(4.dp)
             )
             .focusRequester(focusRequester)
-            .focusable(interactionSource = interactionSource),
-        contentAlignment = Alignment.Center
+            .focusable(interactionSource = interactionSource)
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        content = priceContent
+    )
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun TagChip(text: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(Color.White.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
-        Text(text = text, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(text = text, color = Color.White, fontSize = 11.sp)
     }
 }
 

@@ -16,7 +16,12 @@ data class Game(
     val ageRating: String = "16",
     val contentDescriptors: String = "Violência, Linguagem Imprópria",
     val priceLabel: String = "R$ 199,90",
-    val trialMinutes: Int = 60
+    val originalPriceLabel: String? = null,
+    val discountPercent: Int? = null,
+    val proPriceLabel: String? = null,
+    val offerEndsLabel: String? = null,
+    val trialMinutes: Int = 60,
+    val tags: List<String> = listOf("Multijogador Online", "Compatível com Cloud")
 )
 
 data class NewsItem(
@@ -49,8 +54,13 @@ val mockGames = listOf(
         genre = "Corrida",
         ageRating = "L",
         contentDescriptors = "Violência Leve",
-        priceLabel = "R$ 249,90",
-        trialMinutes = 120
+        priceLabel = "R$ 174,90",
+        originalPriceLabel = "R$ 249,90",
+        discountPercent = 30,
+        proPriceLabel = "R$ 99,90",
+        offerEndsLabel = "Oferta termina em 11/01, 12:00",
+        trialMinutes = 120,
+        tags = listOf("Multijogador Online", "Mundo Aberto", "2-12 jogadores online")
     ),
     Game(
         id = "2",

@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,10 +19,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Search
@@ -27,11 +36,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -61,7 +73,8 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun HomeScreen() {
-    var selectedGame by remember { mutableStateOf(mockGames.first()) }
+    var selectedIndex by remember { mutableStateOf(0) }
+    val selectedGame = mockGames[selectedIndex]
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Background Image with crossfade
@@ -95,41 +108,37 @@ fun HomeScreen() {
                 )
         )
 
-        // Main Vertical Scroll Container
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 48.dp)
-        ) {
-            // Header is top item
-            item {
-                TopNavigationBar()
-                Spacer(modifier = Modifier.height(48.dp))
-            }
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header, game title/meta and the game row are all fixed in
+            // place — none of this scrolls or moves due to focus changes.
+            TopNavigationBar()
+            Spacer(modifier = Modifier.height(200.dp))
 
-            // Game Details Meta Info (Title, Trophies, Friends)
-            item {
-                GameMetaSection(selectedGame)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            GameMetaSection(selectedGame)
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Game Carousel
-            item {
-                GameCarousel(
-                    games = mockGames,
-                    onGameSelected = { selectedGame = it }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            GameCarousel(
+                games = mockGames,
+                selectedIndex = selectedIndex,
+                onIndexSelected = { selectedIndex = it }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Novidades Teaser / Scroll Hint
-            item {
-                NovidadesTeaser()
-                Spacer(modifier = Modifier.height(64.dp))
-            }
+            // Only the Novidades area scrolls into view.
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(bottom = 48.dp)
+            ) {
+                item {
+                    NovidadesTeaser()
+                    Spacer(modifier = Modifier.height(64.dp))
+                }
 
-            // Novidades Section (Appears on Scroll Down)
-            item {
-                NovidadesSection()
+                item {
+                    NovidadesSection()
+                }
             }
         }
 
@@ -246,84 +255,142 @@ fun GameMetaSection(game: Game) {
     }
 }
 
+private val CardSize = 136.dp
+private val InactiveCardSize = CardSize * 0.7f // 30% smaller than the selected card
+private val CarouselStartPadding = 48.dp
+
+private val CardSpacing = 16.dp
+
 @Composable
 fun GameCarousel(
     games: List<Game>,
-    onGameSelected: (Game) -> Unit
+    selectedIndex: Int,
+    onIndexSelected: (Int) -> Unit
 ) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 48.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        // Small icon button at far left as seen in wireframe [x]
-        item {
-            val interactionSource = remember { MutableInteractionSource() }
-            val isFocused by interactionSource.collectIsFocusedAsState()
+    val focusRequester = remember { FocusRequester() }
 
-            Box(
-                modifier = Modifier
-                    .size(48.dp, 180.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White.copy(alpha = 0.15f))
-                    .border(
-                        width = if (isFocused) 2.dp else 0.dp,
-                        color = if (isFocused) Color.Green else Color.Transparent,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .focusable(interactionSource = interactionSource),
-                contentAlignment = Alignment.Center
-            ) {
-                @OptIn(ExperimentalTvMaterial3Api::class)
-                Icon(
-                    Icons.Rounded.Apps,
-                    contentDescription = "Library",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+    // The cursor never moves: it's a fixed overlay drawn at the first slot.
+    // We fully own the row's horizontal offset (no LazyRow scroll state
+    // involved) so nothing else can fight our animation or leave it stuck
+    // mid-way. Every slot has a FIXED layout footprint (InactiveCardSize) so
+    // the row never reflows — the selected card visually grows past its
+    // slot via a child-size animation, it never changes the slot's own
+    // layout size, which is what caused the jumpy motion before.
+    val targetOffset = -(InactiveCardSize + CardSpacing) * selectedIndex
+    val animatedOffset by animateDpAsState(
+        targetValue = targetOffset,
+        animationSpec = CarouselAnimationSpec,
+        label = "carousel_offset"
+    )
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    Box(
+        contentAlignment = Alignment.BottomStart,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(CardSize)
+            .clipToBounds()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                // Ignore OS-level key-repeat dispatches (e.g. a slightly
+                // delayed key-up over a network-connected remote/adb), so a
+                // single press never advances more than one slot.
+                if (event.nativeKeyEvent.repeatCount != 0) return@onKeyEvent true
+                when (event.key) {
+                    Key.DirectionRight -> {
+                        if (selectedIndex < games.lastIndex) {
+                            onIndexSelected(selectedIndex + 1)
+                        }
+                        true
+                    }
+                    Key.DirectionLeft -> {
+                        if (selectedIndex > 0) {
+                            onIndexSelected(selectedIndex - 1)
+                        }
+                        true
+                    }
+                    else -> false
+                }
+            }
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(CardSpacing),
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier
+                .padding(start = CarouselStartPadding)
+                .offset(x = animatedOffset)
+        ) {
+            games.forEachIndexed { index, game ->
+                // Real reflow: the selected card's actual (bigger) width is
+                // what the Row measures, so every card after it slides over
+                // to make room instead of being covered by the overflow.
+                GameCard(
+                    game = game,
+                    isSelected = index == selectedIndex,
+                    modifier = Modifier.zIndex(if (index == selectedIndex) 1f else 0f)
                 )
             }
         }
 
-        // Game cards
-        items(games) { game ->
-            GameCard(game = game, onFocused = { onGameSelected(game) })
-        }
+        // Fixed cursor: always drawn in the same place, on top of whichever
+        // cover the row has slid into the first slot.
+        Box(
+            modifier = Modifier
+                .padding(start = CarouselStartPadding)
+                .size(CardSize)
+                .clip(RoundedCornerShape(8.dp))
+                .border(3.dp, Color.Green, RoundedCornerShape(8.dp))
+        )
     }
 }
 
+// Spring-like motion with a slight overshoot before settling — "resistência
+// considerável" means fairly damped, not a loose bouncy spring.
+private val CarouselAnimationSpec = spring<Dp>(
+    dampingRatio = 0.7f,
+    stiffness = Spring.StiffnessMediumLow
+)
+private val CarouselAlphaAnimationSpec = spring<Float>(
+    dampingRatio = 0.7f,
+    stiffness = Spring.StiffnessMediumLow
+)
+
 @Composable
-fun GameCard(
-    game: Game,
-    onFocused: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-
-    LaunchedEffect(isFocused) {
-        if (isFocused) {
-            onFocused()
-        }
-    }
-
-    val width by animateDpAsState(if (isFocused) 150.dp else 120.dp, label = "width_anim")
-    val height by animateDpAsState(if (isFocused) 225.dp else 180.dp, label = "height_anim")
+fun GameCard(game: Game, isSelected: Boolean, modifier: Modifier = Modifier) {
+    // Both cards are always square — only the side length changes.
+    val size by animateDpAsState(
+        targetValue = if (isSelected) CardSize else InactiveCardSize,
+        animationSpec = CarouselAnimationSpec,
+        label = "card_size"
+    )
+    // Inactive cards sit under a 35% black overlay; the selected one clears
+    // up to fully transparent.
+    val overlayAlpha by animateFloatAsState(
+        targetValue = if (isSelected) 0f else 0.35f,
+        animationSpec = CarouselAlphaAnimationSpec,
+        label = "card_overlay"
+    )
 
     Box(
-        modifier = Modifier
-            .size(width, height)
+        modifier = modifier
+            .size(size)
             .clip(RoundedCornerShape(8.dp))
-            .border(
-                width = if (isFocused) 3.dp else 0.dp,
-                color = if (isFocused) Color.Green else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .focusable(interactionSource = interactionSource)
     ) {
         AsyncImage(
             model = game.coverRes,
             contentDescription = game.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = overlayAlpha))
         )
     }
 }

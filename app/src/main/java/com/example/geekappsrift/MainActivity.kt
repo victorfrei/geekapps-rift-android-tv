@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerSnapDistance
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -32,10 +33,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +53,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import androidx.compose.ui.graphics.FilterQuality
 import coil.compose.AsyncImage
 import kotlin.math.absoluteValue
 import com.example.geekappsrift.ui.theme.GeekappsRiftTheme
@@ -82,17 +81,22 @@ fun HomeScreen() {
     var selectedIndex by remember { mutableStateOf(0) }
     val selectedGame = mockGames[selectedIndex]
     var selectedNewsIndex by remember { mutableStateOf(0) }
+    var selectedHighlightIndex by remember { mutableStateOf(0) }
+    var selectedMostPlayedIndex by remember { mutableStateOf(0) }
+    var selectedFriendIndex by remember { mutableStateOf(0) }
 
-    // Each section is its own full-screen page: the hero (game meta,
-    // carousel) and Novidades never compress each other — a real pager
-    // snaps fully from one to the other instead of a LazyColumn, which
-    // would auto-scroll partway whenever a descendant (like the game
-    // carousel) requests focus.
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    // Each section is its own full-screen page — hero, destaques, mais
+    // jogados, amigos and novidades never compress each other — a real
+    // pager snaps fully from one to the other instead of a LazyColumn,
+    // which would auto-scroll partway whenever a descendant (like the
+    // game carousel) requests focus.
+    val pageCount = 5
+    val pagerState = rememberPagerState(pageCount = { pageCount })
     // Same spring feel as the card carousel — partially stiff, not a
     // mechanical linear snap.
     val pagerFlingBehavior = PagerDefaults.flingBehavior(
         state = pagerState,
+        pagerSnapDistance = PagerSnapDistance.atMost(1),
         snapAnimationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
     )
 
@@ -118,9 +122,15 @@ fun HomeScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Full fade to fully transparent — a page that's mostly
+                    // off-screen must not stay semi-opaque, or it can end
+                    // up hidden behind (instead of crossfading with) the
+                    // page it's swapping with, which only shows up going
+                    // one direction and reads as a broken transition.
                     .graphicsLayer {
-                        alpha = 1f - distance * 0.6f
+                        alpha = 1f - distance
                     }
+                    .zIndex(1f - distance)
             ) {
                 when (page) {
                     0 -> HeroSection(
@@ -129,6 +139,21 @@ fun HomeScreen() {
                         selectedGame = selectedGame,
                         selectedIndex = selectedIndex,
                         onIndexSelected = { selectedIndex = it }
+                    )
+                    1 -> DestaquesPage(
+                        modifier = Modifier.fillMaxSize(),
+                        selectedIndex = selectedHighlightIndex,
+                        onIndexSelected = { selectedHighlightIndex = it }
+                    )
+                    2 -> MaisJogadosPage(
+                        modifier = Modifier.fillMaxSize(),
+                        selectedIndex = selectedMostPlayedIndex,
+                        onIndexSelected = { selectedMostPlayedIndex = it }
+                    )
+                    3 -> AmigosPage(
+                        modifier = Modifier.fillMaxSize(),
+                        selectedIndex = selectedFriendIndex,
+                        onIndexSelected = { selectedFriendIndex = it }
                     )
                     else -> NovidadesPage(
                         modifier = Modifier.fillMaxSize(),
@@ -211,7 +236,7 @@ fun HeroSection(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 96.dp),
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.Bottom
         ) {
             GameMetaSection(selectedGame)
@@ -273,7 +298,7 @@ fun NovidadesPage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 96.dp),
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.Bottom
         ) {
             NovidadesSection(
@@ -281,6 +306,390 @@ fun NovidadesPage(
                 onIndexSelected = onNewsSelected
             )
         }
+    }
+}
+
+@Composable
+fun DestaquesPage(
+    modifier: Modifier = Modifier,
+    selectedIndex: Int,
+    onIndexSelected: (Int) -> Unit
+) {
+    val selectedGame = mockGames[selectedIndex]
+
+    Box(modifier = modifier) {
+        Crossfade(
+            targetState = selectedGame.backgroundRes,
+            animationSpec = tween(durationMillis = 500),
+            label = "highlight_background_fade"
+        ) { bgRes ->
+            AsyncImage(
+                model = bgRes,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.95f)
+                        ),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 48.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(16.dp)
+                            .height(2.dp)
+                            .background(Color.Green)
+                    )
+                    Text(
+                        text = "DESTAQUES",
+                        color = Color.Green,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Selecionados para você",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(horizontal = 48.dp)
+            ) {
+                itemsIndexed(mockGames) { index, game ->
+                    HighlightCard(
+                        game = game,
+                        requestInitialFocus = index == 0,
+                        onFocused = { onIndexSelected(index) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HighlightCard(
+    game: Game,
+    requestInitialFocus: Boolean = false,
+    onFocused: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            onFocused()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (requestInitialFocus) {
+            focusRequester.requestFocus()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .size(320.dp, 180.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(
+                width = if (isFocused) 3.dp else 0.dp,
+                color = if (isFocused) Color.Green else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .focusRequester(focusRequester)
+            .focusable(interactionSource = interactionSource)
+    ) {
+        AsyncImage(
+            model = game.backgroundRes,
+            contentDescription = game.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
+                        startY = 60f
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = game.title,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "🏆 ${game.trophiesCount} troféus conquistados",
+                color = Color.LightGray,
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun MaisJogadosPage(
+    modifier: Modifier = Modifier,
+    selectedIndex: Int,
+    onIndexSelected: (Int) -> Unit
+) {
+    val selectedGame = mostPlayedGames[selectedIndex]
+
+    Box(modifier = modifier) {
+        Crossfade(
+            targetState = selectedGame.backgroundRes,
+            animationSpec = tween(durationMillis = 500),
+            label = "most_played_background_fade"
+        ) { bgRes ->
+            AsyncImage(
+                model = bgRes,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.95f)
+                        ),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 48.dp)) {
+                Text(
+                    text = selectedGame.title,
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "⏱ ${selectedGame.hoursPlayed}h jogadas",
+                    color = Color.LightGray,
+                    fontSize = 13.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            GameCarousel(
+                games = mostPlayedGames,
+                selectedIndex = selectedIndex,
+                onIndexSelected = onIndexSelected
+            )
+        }
+    }
+}
+
+@Composable
+fun AmigosPage(
+    modifier: Modifier = Modifier,
+    selectedIndex: Int,
+    onIndexSelected: (Int) -> Unit
+) {
+    val selectedFriend = mockFriends[selectedIndex]
+
+    Box(modifier = modifier) {
+        Crossfade(
+            targetState = selectedFriend.backgroundRes,
+            animationSpec = tween(durationMillis = 500),
+            label = "friends_background_fade"
+        ) { bgRes ->
+            AsyncImage(
+                model = bgRes,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.95f)
+                        ),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 48.dp)) {
+                Text(
+                    text = selectedFriend.name,
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (selectedFriend.isOnline) Color.Green else Color.Gray)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = selectedFriend.statusText,
+                        color = Color.LightGray,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(horizontal = 48.dp)
+            ) {
+                itemsIndexed(mockFriends) { index, friend ->
+                    FriendCard(
+                        friend = friend,
+                        requestInitialFocus = index == 0,
+                        onFocused = { onIndexSelected(index) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FriendCard(
+    friend: Friend,
+    requestInitialFocus: Boolean = false,
+    onFocused: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            onFocused()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (requestInitialFocus) {
+            focusRequester.requestFocus()
+        }
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(120.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(
+                width = if (isFocused) 3.dp else 0.dp,
+                color = if (isFocused) Color.Green else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .focusRequester(focusRequester)
+            .focusable(interactionSource = interactionSource)
+            .padding(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(Color(friend.avatarColor))
+                .border(2.dp, if (friend.isOnline) Color.Green else Color.Gray, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = friend.name.first().toString(),
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = friend.name,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
+        Text(
+            text = friend.statusText,
+            color = Color.LightGray,
+            fontSize = 10.sp,
+            maxLines = 1
+        )
     }
 }
 
@@ -294,14 +703,8 @@ fun TopNavigationBar(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left side: time & icons
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("20:32", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp)
-            Spacer(modifier = Modifier.width(16.dp))
-            Icon(Icons.Rounded.Search, contentDescription = "Search", tint = Color.White, modifier = Modifier.size(12.dp))
-            Spacer(modifier = Modifier.width(16.dp))
-            Icon(Icons.Rounded.Notifications, contentDescription = "Notifications", tint = Color.White, modifier = Modifier.size(12.dp))
-        }
+        // Left side: time
+        Text("20:32", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
 
         // Center: Tabs
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -313,17 +716,20 @@ fun TopNavigationBar(modifier: Modifier = Modifier) {
 
         // Right side: Profile
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Victor Freire ", color = Color.LightGray, fontSize = 9.sp)
-            Text("victorfrei", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-            Spacer(modifier = Modifier.width(8.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text("Victor Freire", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                Text("victor@geekapps.com.br", color = Color.LightGray, fontSize = 8.sp)
+            }
+            Spacer(modifier = Modifier.width(10.dp))
             AsyncImage(
                 model = R.drawable.user_avatar,
                 contentDescription = "Profile",
                 contentScale = ContentScale.Crop,
+                filterQuality = FilterQuality.High,
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(30.dp)
                     .clip(CircleShape)
-                    .border(1.dp, Color.Green, CircleShape)
+                    .border(1.5.dp, Color.Green, CircleShape)
             )
         }
     }

@@ -16,6 +16,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -76,7 +78,38 @@ fun HomeScreen() {
     var selectedIndex by remember { mutableStateOf(0) }
     val selectedGame = mockGames[selectedIndex]
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // Each section is its own full-screen page: the hero (header, game
+    // meta, carousel) and Novidades never compress each other — a real
+    // pager snaps fully from one to the other instead of a LazyColumn,
+    // which would auto-scroll partway whenever a descendant (like the
+    // game carousel) requests focus.
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    VerticalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize()
+    ) { page ->
+        when (page) {
+            0 -> HeroSection(
+                modifier = Modifier.fillMaxSize(),
+                games = mockGames,
+                selectedGame = selectedGame,
+                selectedIndex = selectedIndex,
+                onIndexSelected = { selectedIndex = it }
+            )
+            else -> NovidadesPage(modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+
+@Composable
+fun HeroSection(
+    modifier: Modifier = Modifier,
+    games: List<Game>,
+    selectedGame: Game,
+    selectedIndex: Int,
+    onIndexSelected: (Int) -> Unit
+) {
+    Box(modifier = modifier.fillMaxWidth()) {
         // Background Image with crossfade
         Crossfade(
             targetState = selectedGame.backgroundRes,
@@ -109,8 +142,6 @@ fun HomeScreen() {
         )
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header, game title/meta and the game row are all fixed in
-            // place — none of this scrolls or moves due to focus changes.
             TopNavigationBar()
             Spacer(modifier = Modifier.height(200.dp))
 
@@ -118,29 +149,13 @@ fun HomeScreen() {
             Spacer(modifier = Modifier.height(16.dp))
 
             GameCarousel(
-                games = mockGames,
+                games = games,
                 selectedIndex = selectedIndex,
-                onIndexSelected = { selectedIndex = it }
+                onIndexSelected = onIndexSelected
             )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Only the Novidades area scrolls into view.
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(bottom = 48.dp)
-            ) {
-                item {
-                    NovidadesTeaser()
-                    Spacer(modifier = Modifier.height(64.dp))
-                }
-
-                item {
-                    NovidadesSection()
-                }
-            }
         }
+
+        NovidadesTeaser(modifier = Modifier.align(Alignment.BottomStart))
 
         // Fixed Bottom Hints on overlay
         Box(
@@ -149,6 +164,23 @@ fun HomeScreen() {
                 .padding(bottom = 24.dp, end = 48.dp)
         ) {
             BottomHints()
+        }
+    }
+}
+
+@Composable
+fun NovidadesPage(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.Black)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 64.dp)
+        ) {
+            NovidadesSection()
         }
     }
 }
@@ -397,11 +429,11 @@ fun GameCard(game: Game, isSelected: Boolean, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun NovidadesTeaser() {
+fun NovidadesTeaser(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 48.dp)
+            .padding(horizontal = 48.dp, vertical = 32.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

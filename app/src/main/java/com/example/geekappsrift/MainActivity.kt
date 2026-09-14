@@ -17,6 +17,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -88,10 +89,17 @@ fun HomeScreen() {
     // would auto-scroll partway whenever a descendant (like the game
     // carousel) requests focus.
     val pagerState = rememberPagerState(pageCount = { 2 })
+    // Same spring feel as the card carousel — partially stiff, not a
+    // mechanical linear snap.
+    val pagerFlingBehavior = PagerDefaults.flingBehavior(
+        state = pagerState,
+        snapAnimationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow)
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         VerticalPager(
             state = pagerState,
+            flingBehavior = pagerFlingBehavior,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             // Cross-fade + a gentle scale-down on whichever page is
@@ -302,7 +310,15 @@ fun TopNavigationBar(modifier: Modifier = Modifier) {
             Text("Victor Freire ", color = Color.LightGray, fontSize = 9.sp)
             Text("victorfrei", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 9.sp)
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Rounded.AccountCircle, contentDescription = "Profile", tint = Color.Green, modifier = Modifier.size(20.dp))
+            AsyncImage(
+                model = R.drawable.user_avatar,
+                contentDescription = "Profile",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .border(1.dp, Color.Green, CircleShape)
+            )
         }
     }
 }

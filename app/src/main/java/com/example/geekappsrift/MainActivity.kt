@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -93,6 +94,7 @@ fun HomeScreen() {
     val pageCount = 5
     var currentPage by remember { mutableStateOf(0) }
     val controllerBrand = rememberControllerBrand()
+    var showGameDetails by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -101,6 +103,15 @@ fun HomeScreen() {
             .onKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                 if (event.nativeKeyEvent.repeatCount != 0) return@onKeyEvent true
+                if (showGameDetails) {
+                    return@onKeyEvent when (event.key) {
+                        Key.Back, Key.Escape, Key.ButtonB -> {
+                            showGameDetails = false
+                            true
+                        }
+                        else -> false
+                    }
+                }
                 when (event.key) {
                     Key.DirectionDown -> {
                         if (currentPage < pageCount - 1) currentPage++
@@ -108,6 +119,10 @@ fun HomeScreen() {
                     }
                     Key.DirectionUp -> {
                         if (currentPage > 0) currentPage--
+                        true
+                    }
+                    Key.DirectionCenter, Key.Enter, Key.ButtonA -> {
+                        if (currentPage == 0) showGameDetails = true
                         true
                     }
                     else -> false
@@ -172,6 +187,19 @@ fun HomeScreen() {
                 .padding(bottom = 24.dp, end = 48.dp)
         ) {
             BottomHints(page = currentPage, brand = controllerBrand)
+        }
+
+        // Game details opens as its own full-screen overlay with its own
+        // back button, replacing the persistent header/hints while shown.
+        AnimatedVisibility(
+            visible = showGameDetails,
+            enter = slideInVertically(PageSlideSpec) { height -> height },
+            exit = slideOutVertically(PageSlideSpec) { height -> height }
+        ) {
+            GameDetailsPage(
+                game = selectedGame,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

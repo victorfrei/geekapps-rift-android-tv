@@ -9,7 +9,14 @@ data class Game(
     @DrawableRes val backgroundRes: Int,
     val trophiesCount: String = "2/10",
     val friendsPlayingCount: Int = 3,
-    val hoursPlayed: Int = 0
+    val hoursPlayed: Int = 0,
+    val studio: String = "Studio",
+    val releaseYear: String = "2024",
+    val genre: String = "Ação",
+    val ageRating: String = "16",
+    val contentDescriptors: String = "Violência, Linguagem Imprópria",
+    val priceLabel: String = "R$ 199,90",
+    val trialMinutes: Int = 60
 )
 
 data class NewsItem(
@@ -36,7 +43,14 @@ val mockGames = listOf(
         backgroundRes = R.drawable.forza_bg,
         trophiesCount = "5/10",
         friendsPlayingCount = 4,
-        hoursPlayed = 62
+        hoursPlayed = 62,
+        studio = "Playground Games",
+        releaseYear = "2021",
+        genre = "Corrida",
+        ageRating = "L",
+        contentDescriptors = "Violência Leve",
+        priceLabel = "R$ 249,90",
+        trialMinutes = 120
     ),
     Game(
         id = "2",
@@ -45,7 +59,14 @@ val mockGames = listOf(
         backgroundRes = R.drawable.minecraft_bg,
         trophiesCount = "8/10",
         friendsPlayingCount = 2,
-        hoursPlayed = 145
+        hoursPlayed = 145,
+        studio = "Mojang Studios",
+        releaseYear = "2011",
+        genre = "Sandbox",
+        ageRating = "L",
+        contentDescriptors = "Violência Fantasiosa",
+        priceLabel = "R$ 99,90",
+        trialMinutes = 90
     ),
     Game(
         id = "3",
@@ -54,7 +75,14 @@ val mockGames = listOf(
         backgroundRes = R.drawable.halo_bg,
         trophiesCount = "3/10",
         friendsPlayingCount = 5,
-        hoursPlayed = 28
+        hoursPlayed = 28,
+        studio = "343 Industries",
+        releaseYear = "2021",
+        genre = "Tiro em Primeira Pessoa",
+        ageRating = "16",
+        contentDescriptors = "Violência, Linguagem Imprópria",
+        priceLabel = "R$ 199,90",
+        trialMinutes = 60
     ),
     Game(
         id = "4",
@@ -63,7 +91,14 @@ val mockGames = listOf(
         backgroundRes = R.drawable.party_animals_bg,
         trophiesCount = "1/10",
         friendsPlayingCount = 3,
-        hoursPlayed = 81
+        hoursPlayed = 81,
+        studio = "Recreate Games",
+        releaseYear = "2023",
+        genre = "Festa",
+        ageRating = "L",
+        contentDescriptors = "Violência Cômica",
+        priceLabel = "R$ 89,90",
+        trialMinutes = 60
     ),
     Game(
         id = "5",
@@ -72,7 +107,14 @@ val mockGames = listOf(
         backgroundRes = R.drawable.fortnite_bg,
         trophiesCount = "7/10",
         friendsPlayingCount = 6,
-        hoursPlayed = 103
+        hoursPlayed = 103,
+        studio = "Epic Games",
+        releaseYear = "2017",
+        genre = "Battle Royale",
+        ageRating = "12",
+        contentDescriptors = "Violência",
+        priceLabel = "Grátis",
+        trialMinutes = 0
     )
 )
 
